@@ -7,15 +7,16 @@ import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
-class RestTemplateContext {
+public class RestTemplateContext {
 
     private static RestTemplateContext instance;
     @Getter
     private final RestTemplate restTemplate;
 
     private RestTemplateContext(){
-        this.restTemplate = restTemplate(new HttpComponentsClientHttpRequestFactory(
-                TrustAnyHttpClientFactory.createTrustAnyHttpClient()));
+        HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(
+                TrustAnyHttpClientFactory.createTrustAnyHttpClient());
+        this.restTemplate = restTemplate(requestFactory);
     }
 
     public static RestTemplateContext getInstance() {
@@ -33,7 +34,7 @@ class RestTemplateContext {
         return instance;
     }
 
-    RestTemplate restTemplate(ClientHttpRequestFactory factory) {
+    public RestTemplate restTemplate(ClientHttpRequestFactory factory) {
         return new RestTemplate(factory);
     }
 

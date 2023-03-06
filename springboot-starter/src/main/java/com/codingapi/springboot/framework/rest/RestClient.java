@@ -1,18 +1,19 @@
 package com.codingapi.springboot.framework.rest;
 
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.JSON;
 import com.codingapi.springboot.framework.rest.param.RestParamBuilder;
 import com.codingapi.springboot.framework.rest.properties.HttpProxyProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.util.MultiValueMap;
 
 @Slf4j
 public class RestClient {
 
     private final HttpHeaders httpHeaders;
 
-    private final HttpClient httpClient;
+    private final HttpRequest httpRequest;
 
     private final int retryCount;
 
@@ -20,17 +21,22 @@ public class RestClient {
 
     private final String baseUrl;
 
-    public RestClient(HttpProxyProperties httpProxyProperties, String baseUrl,int retryCount,String emptyResponse) {
+    public RestClient(HttpProxyProperties httpProxyProperties,
+                      String baseUrl,
+                      int retryCount,
+                      String emptyResponse,
+                      HttpRequest.IHttpRequestHandler requestHandler,
+                      HttpRequest.IHttpResponseHandler responseHandler) {
         this.baseUrl = baseUrl;
         this.retryCount = retryCount;
-        this.httpClient = new HttpClient(httpProxyProperties);
+        this.httpRequest = new HttpRequest(httpProxyProperties,requestHandler,responseHandler);
         this.httpHeaders = new HttpHeaders();
         this.emptyResponse = emptyResponse;
         this.initHeaders();
     }
 
     public RestClient(String baseUrl) {
-        this(null, baseUrl,5,"{}");
+        this(null, baseUrl,5,"{}",null,null);
     }
 
     private void initHeaders() {
@@ -41,14 +47,12 @@ public class RestClient {
         return baseUrl + api;
     }
 
-    private String _get(String api, HttpHeaders headers, RestParamBuilder paramBuilder) {
-        return httpClient.get(toUrl(api), headers, paramBuilder != null ? paramBuilder.toFormRequest() : null);
-    }
-
-    public String get(String api, HttpHeaders headers, RestParamBuilder paramBuilder) {
+    public String get(String api, HttpHeaders headers, MultiValueMap<String, String> requestParams) {
+        String url = toUrl(api);
+        Request request = getGetRequest(url, headers, requestParams);
         for (int i = 0; i < retryCount; i++) {
             try {
-                return _get(api, headers, paramBuilder);
+                return request.execute();
             } catch (Exception e) {
                 log.warn("api:{},error:{}", api, e.getMessage());
                 sleep();
@@ -57,23 +61,31 @@ public class RestClient {
         return emptyResponse;
     }
 
+    public String get(String api, HttpHeaders headers, RestParamBuilder paramBuilder) {
+        return get(api, headers,paramBuilder!=null?paramBuilder.toFormRequest():null);
+    }
+
     public String get(String api, RestParamBuilder paramBuilder) {
         return get(api, httpHeaders, paramBuilder);
     }
 
     public String get(String api) {
-        return get(api, httpHeaders, null);
+        return get(api, httpHeaders, (RestParamBuilder) null);
     }
 
     public String get(String api, HttpHeaders headers) {
-        return get(api, headers, null);
+        return get(api, headers, (RestParamBuilder) null);
     }
 
-    private String _post(String api, HttpHeaders headers, JSONObject requestBody) {
-        return httpClient.post(toUrl(api), headers, requestBody);
+    public Request getGetRequest(String api, HttpHeaders headers, MultiValueMap<String, String> requestParams) {
+        return httpRequest.getGetRequest(api, headers, requestParams);
     }
 
-    public String post(String api, JSONObject requestBody) {
+    public Request getPostRequest(String api, HttpHeaders headers, JSON requestBody) {
+        return httpRequest.getPostRequest(api, headers, requestBody);
+    }
+
+    public String post(String api, JSON requestBody) {
         return post(api, httpHeaders, requestBody);
     }
 
@@ -81,10 +93,12 @@ public class RestClient {
         return post(api, httpHeaders, paramBuilder.toJsonRequest());
     }
 
-    public String post(String api, HttpHeaders headers, JSONObject requestBody) {
+    public String post(String api, HttpHeaders headers, JSON requestBody) {
+        String url = toUrl(api);
+        Request request =  getPostRequest(url, headers, requestBody);
         for (int i = 0; i < retryCount; i++) {
             try {
-                return _post(api, headers, requestBody);
+                return request.execute();
             } catch (Exception e) {
                 log.warn("api:{},error:{}", api, e.getMessage());
                 sleep();

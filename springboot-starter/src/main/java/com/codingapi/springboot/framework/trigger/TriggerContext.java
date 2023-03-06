@@ -3,18 +3,18 @@ package com.codingapi.springboot.framework.trigger;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.ParameterizedType;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 
 /**
  * Trigger与Event模式都提供了订阅的功能。
+ * Trigger与Event差异是,Event是消息驱动性，而Trigger是订阅驱动性。
+ * 两者的差异在于，Event是确定了消息而不确定订阅方，而Trigger则是确定了订阅再等待消息触发。
  *
  * Trigger模式可以控制触发的规则,例如是否进入触发器,触发器是否在触发以后删除。
- * Trigger是单独的消息数据不占用Event的通道。由于Event利用了Spring的事件底层,因此在大规模的事件情况下会堵塞spring的事件通道。
  */
 @SuppressWarnings("all")
 @Slf4j
@@ -38,10 +38,10 @@ public class TriggerContext{
      * @param handler 触发订阅
      */
     public void addTrigger(TriggerHandler handler){
-        Class<? extends Trigger> clazz = getTriggerClass(handler);
+        Class<? extends Trigger> clazz = getTriggerClass(handler.getClass());
         List<TriggerHandler> triggerList =  this.triggers.get(clazz);
         if(triggerList==null){
-            triggerList = new ArrayList<>();
+            triggerList = new CopyOnWriteArrayList<>();
             this.triggers.put(clazz,triggerList);
         }
         triggerList.add(handler);
@@ -53,9 +53,14 @@ public class TriggerContext{
      * @param handler 触发订阅
      * @return Trigger类型
      */
-    private Class<? extends Trigger> getTriggerClass(TriggerHandler handler){
-        ParameterizedType parameterizedType = (ParameterizedType) handler.getClass().getGenericInterfaces()[0];
-        return (Class<? extends Trigger>) parameterizedType.getActualTypeArguments()[0];
+    private Class<? extends Trigger> getTriggerClass(Class<?> handler){
+        for(Class<?> superInterface : handler.getInterfaces()) {
+            if (superInterface.equals(TriggerHandler.class)) {
+                ParameterizedType parameterizedType = (ParameterizedType) handler.getGenericInterfaces()[0];
+                return (Class<? extends Trigger>) parameterizedType.getActualTypeArguments()[0];
+            }
+        }
+        return getTriggerClass(handler.getSuperclass());
     }
 
 
@@ -65,20 +70,20 @@ public class TriggerContext{
      */
     public void trigger(Trigger trigger){
         Class<? extends Trigger> clazz = trigger.getClass();
-        Iterator<TriggerHandler> iterator = triggers.get(clazz).iterator();
-        while (iterator.hasNext()){
-            TriggerHandler handler = iterator.next();
-            Class<? extends Trigger> triggerClass = getTriggerClass(handler);
+        List<TriggerHandler> triggerHandlerList = triggers.get(clazz);
+        for(TriggerHandler handler:triggerHandlerList){
+            Class<? extends Trigger> triggerClass = getTriggerClass(handler.getClass());
             if(triggerClass.equals(clazz)) {
                 try {
-                    if (handler.preTrigger(trigger)) {
+                    boolean canTrigger = handler.preTrigger(trigger);
+                    if (canTrigger) {
                         handler.trigger(trigger);
-                        if (handler.remove()) {
-                            iterator.remove();
-                        }
+                    }
+                    if (handler.remove(trigger,canTrigger)) {
+                        triggerHandlerList.remove(handler);
                     }
                 }catch (Exception e){
-                    log.warn("trigger error:{}",e.getLocalizedMessage());
+                    log.warn("trigger error",e);
                 }
             }
         }
