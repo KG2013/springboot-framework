@@ -24,7 +24,7 @@ public class AES {
     private final AlgorithmParameters iv;
     private final String algorithm;
 
-    public AES(String algorithm,Key key,AlgorithmParameters iv){
+    public AES(String algorithm, Key key, AlgorithmParameters iv) {
         Security.addProvider(new BouncyCastleProvider());
         this.algorithm = algorithm;
         this.key = key;
@@ -38,7 +38,7 @@ public class AES {
         this.iv = generateIV(randomIv());
     }
 
-    public AES(String algorithm, byte[] keys, byte[] ivs) throws Exception{
+    public AES(String algorithm, byte[] keys, byte[] ivs) throws Exception {
         Security.addProvider(new BouncyCastleProvider());
         this.algorithm = algorithm;
         this.key = convertToKey(keys);
@@ -46,27 +46,27 @@ public class AES {
     }
 
     public AES() throws Exception {
-        this(CIPHER_ALGORITHM,256);
+        this(CIPHER_ALGORITHM, 256);
     }
 
 
     public AES(int generateKeySize) throws Exception {
-        this(CIPHER_ALGORITHM,generateKeySize);
+        this(CIPHER_ALGORITHM, generateKeySize);
     }
 
-    public AES(byte[] keys, byte[] ivs) throws Exception{
-        this(CIPHER_ALGORITHM,keys,ivs);
+    public AES(byte[] keys, byte[] ivs) throws Exception {
+        this(CIPHER_ALGORITHM, keys, ivs);
     }
 
-    public AES(String key, String iv) throws Exception{
-        this(CIPHER_ALGORITHM,key.getBytes(StandardCharsets.UTF_8),iv.getBytes(StandardCharsets.UTF_8));
+    public AES(String key, String iv) throws Exception {
+        this(CIPHER_ALGORITHM, key.getBytes(StandardCharsets.UTF_8), iv.getBytes(StandardCharsets.UTF_8));
     }
 
-    private byte[] randomIv(){
+    private byte[] randomIv() {
         Random random = new Random();
         byte[] bytes = new byte[16];
         random.nextBytes(bytes);
-        return  bytes;
+        return bytes;
     }
 
     private SecretKey generateKey(int keySize) throws Exception {
@@ -78,15 +78,15 @@ public class AES {
 
     private AlgorithmParameters generateIV(byte[] ivs) throws Exception {
         AlgorithmParameters params = AlgorithmParameters.getInstance(KEY_ALGORITHM);
-        params.init(new IvParameterSpec(ivs));
+        params.init(new IvParameterSpec(ivs, 0, 16));
         return params;
     }
 
-    private Key convertToKey(byte[] keyBytes){
+    private Key convertToKey(byte[] keyBytes) {
         return new SecretKeySpec(keyBytes, KEY_ALGORITHM);
     }
 
-    public byte[] getKey(){
+    public byte[] getKey() {
         return key.getEncoded();
     }
 

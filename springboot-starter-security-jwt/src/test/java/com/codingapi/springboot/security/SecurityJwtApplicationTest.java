@@ -32,16 +32,43 @@ public class SecurityJwtApplicationTest {
         JSONObject json = new JSONObject();
         json.put("username","admin");
         json.put("password","123456");
-        mockMvc.perform(post("/user/login").content(json.toJSONString().getBytes(StandardCharsets.UTF_8)).contentType(MediaType.APPLICATION_JSON)).andExpect(status().isOk());
+        mockMvc.perform(post("/user/login")
+                .content(json.toJSONString().getBytes(StandardCharsets.UTF_8))
+                .contentType(MediaType.APPLICATION_JSON)).andExpect(status().isOk());
+    }
+
+    @Test
+    void loginError() throws Exception {
+        JSONObject json = new JSONObject();
+        json.put("username","admin");
+        json.put("password","12345678");
+        mockMvc.perform(post("/user/login")
+                .content(json.toJSONString().getBytes(StandardCharsets.UTF_8))
+                .contentType(MediaType.APPLICATION_JSON)).andExpect(result -> {
+            String body = result.getResponse().getContentAsString();
+            JSONObject jsonObject = JSONObject.parseObject(body);
+            log.info("body:{}", jsonObject);
+            assertEquals(jsonObject.getString("errCode"),"login.error","login error");
+        });
     }
 
     @Test
     void noToken() throws Exception {
-        mockMvc.perform(get("/api/hello").contentType(MediaType.APPLICATION_JSON)).andExpect(result -> {
+        mockMvc.perform(get("/api/hello")
+                .contentType(MediaType.APPLICATION_JSON)).andExpect(result -> {
             String body = result.getResponse().getContentAsString();
             JSONObject jsonObject = JSONObject.parseObject(body);
             log.info("body:{}",jsonObject);
             assertEquals(jsonObject.getString("errCode"),"token.error","token authentication error");
+        });
+    }
+
+    @Test
+    void random() throws Exception {
+        mockMvc.perform(get("/xxx/hello")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(result -> {
+            assertEquals(404,result.getResponse().getStatus());
         });
     }
 
@@ -51,7 +78,9 @@ public class SecurityJwtApplicationTest {
         JSONObject json = new JSONObject();
         json.put("username","admin");
         json.put("password","123456");
-        MvcResult mvcResult =  mockMvc.perform(post("/user/login").content(json.toJSONString().getBytes(StandardCharsets.UTF_8)).contentType(MediaType.APPLICATION_JSON)).andReturn();
+        MvcResult mvcResult =  mockMvc.perform(post("/user/login")
+                .content(json.toJSONString().getBytes(StandardCharsets.UTF_8))
+                .contentType(MediaType.APPLICATION_JSON)).andReturn();
         JSONObject loginData = JSONObject.parseObject(mvcResult.getResponse().getContentAsString());
 
         mockMvc.perform(get("/api/hello").header("Authorization",loginData.getJSONObject("data").getString("token")).contentType(MediaType.APPLICATION_JSON)).andExpect(result -> {
@@ -67,12 +96,16 @@ public class SecurityJwtApplicationTest {
         JSONObject json = new JSONObject();
         json.put("username","admin");
         json.put("password","123456");
-        MvcResult mvcResult =  mockMvc.perform(post("/user/login").content(json.toJSONString().getBytes(StandardCharsets.UTF_8)).contentType(MediaType.APPLICATION_JSON)).andReturn();
+        MvcResult mvcResult =  mockMvc.perform(post("/user/login")
+                .content(json.toJSONString().getBytes(StandardCharsets.UTF_8))
+                .contentType(MediaType.APPLICATION_JSON)).andReturn();
         JSONObject loginData = JSONObject.parseObject(mvcResult.getResponse().getContentAsString());
 
         Thread.sleep(1000*5);
 
-        mockMvc.perform(get("/api/hello").header("Authorization",loginData.getJSONObject("data").getString("token")).contentType(MediaType.APPLICATION_JSON)).andExpect(result -> {
+        mockMvc.perform(get("/api/hello")
+                .header("Authorization",loginData.getJSONObject("data").getString("token"))
+                .contentType(MediaType.APPLICATION_JSON)).andExpect(result -> {
             String body = result.getResponse().getContentAsString();
             String newToken = result.getResponse().getHeader("Authorization");
 
@@ -87,12 +120,16 @@ public class SecurityJwtApplicationTest {
         JSONObject json = new JSONObject();
         json.put("username","admin");
         json.put("password","123456");
-        MvcResult mvcResult =  mockMvc.perform(post("/user/login").content(json.toJSONString().getBytes(StandardCharsets.UTF_8)).contentType(MediaType.APPLICATION_JSON)).andReturn();
+        MvcResult mvcResult =  mockMvc.perform(post("/user/login")
+                .content(json.toJSONString().getBytes(StandardCharsets.UTF_8))
+                .contentType(MediaType.APPLICATION_JSON)).andReturn();
         JSONObject loginData = JSONObject.parseObject(mvcResult.getResponse().getContentAsString());
 
         Thread.sleep(1000*10);
 
-        mockMvc.perform(get("/api/hello").header("Authorization",loginData.getJSONObject("data").getString("token")).contentType(MediaType.APPLICATION_JSON)).andExpect(result -> {
+        mockMvc.perform(get("/api/hello")
+                .header("Authorization",loginData.getJSONObject("data").getString("token"))
+                .contentType(MediaType.APPLICATION_JSON)).andExpect(result -> {
             String body = result.getResponse().getContentAsString();
             JSONObject data = JSONObject.parseObject(body);
             assertEquals(data.getString("errCode"),"token.expire","token authentication error");
